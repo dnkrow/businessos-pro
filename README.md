@@ -4,7 +4,8 @@
 
 > **Module 1** du projet BusinessOS Pro — application de démonstration **entièrement fonctionnelle**, prête à déployer.
 
-🔗 **Démo en ligne :** _(à compléter après le déploiement Vercel)_
+🔗 **Démo en ligne : [businessos-pro.vercel.app](https://businessos-pro.vercel.app)**
+> Connexion immédiate avec les [comptes de démonstration](#-comptes-de-démonstration) (ex : `admin@businessos.pro` / `Admin1234!`).
 
 ---
 
