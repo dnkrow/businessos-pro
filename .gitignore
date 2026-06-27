@@ -39,9 +39,6 @@ yarn-error.log*
 *.db-journal
 /prisma/*.db
 
-# local tooling
-.claude
-
 # vercel
 .vercel
 
