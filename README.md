@@ -152,12 +152,34 @@ prisma/              schema.prisma + seed.ts
 | Upload de logo / documents | Champ URL (texte) | Brancher Vercel Blob / S3 |
 | Paiement des abonnements | Consultation uniquement | Brancher Stripe (le modèle de données est prêt) |
 | Emails transactionnels stylés | Texte simple | Gabarits HTML (React Email) |
-| Tests automatisés | — | Suite Vitest / Playwright |
+| Tests automatisés | Parcours client E2E (Playwright, `scripts/qa-client.mjs`) ✓ | Étendre la couverture (Vitest / Playwright) |
 
 Ces points sont **isolés derrière des fonctions dédiées** (`lib/mailer.ts`, etc.) : les brancher ne touche pas au reste de l'application.
 
 ---
 
-## 🔭 Suite du projet
+## 🗺️ Roadmap
 
-BusinessOS Pro est conçu pour être développé **module par module**. Le Module 1 pose les fondations (identité, entreprises, équipes, sécurité, permissions) que les modules suivants — facturation, CRM, RH, stocks… — réutiliseront directement.
+Développement **module par module**, chaque brique se greffant sur le socle du Module 1 (auth, multi-entreprises, rôles/permissions, notifications, audit).
+
+### ✅ Module 1 — Fondations *(ce dépôt)*
+Authentification & 2FA · création et **validation manuelle** des entreprises · employés & rôles personnalisables · établissements · sécurité (sessions, appareils, audit) · espace Super Admin.
+
+### 🔜 Module 2 — Clients & Facturation *(proposé)*
+- Clients & prospects (CRM léger)
+- **Devis → factures** : TVA, échéances, statuts, avoirs
+- Catalogue produits / services
+- Paiements, relances d'impayés, export **PDF & comptable**
+- Tableau de bord : chiffre d'affaires, encours, impayés
+
+### 💡 Modules envisagés ensuite
+**RH & Planning** (congés, horaires, pointage) · **Stocks & Produits** (inventaire, fournisseurs) · **Ventes / Caisse** (POS) · **Finances & Compta** · facturation de la plateforme via **Stripe** (le modèle d'abonnement est déjà en place).
+
+> Le périmètre exact de chaque module est défini avec le client avant développement.
+
+---
+
+## 📄 Licence
+
+© 2026 — **Tous droits réservés**. Voir [`LICENSE`](LICENSE).
+Code rendu public à des fins de **démonstration et de portfolio**. Toute réutilisation nécessite une autorisation écrite ; les droits peuvent être **cédés ou transférés au client** par accord écrit.
