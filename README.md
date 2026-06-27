@@ -7,6 +7,12 @@
 🔗 **Démo en ligne : [businessos-pro.vercel.app](https://businessos-pro.vercel.app)**
 > Connexion immédiate avec les [comptes de démonstration](#-comptes-de-démonstration) (ex : `admin@businessos.pro` / `Admin1234!`).
 
+## 🎥 Aperçu
+
+![Démonstration de BusinessOS Pro — de l'inscription à la validation par le Super Admin](docs/demo.gif)
+
+> Parcours : page d'accueil → connexion Super Admin → validation manuelle d'une entreprise → espace dirigeant (employés, rôles, sécurité). Vidéo complète en MP4 disponible sur demande.
+
 ---
 
 ## ✨ Fonctionnalités (Module 1)
