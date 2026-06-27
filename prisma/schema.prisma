@@ -1,0 +1,329 @@
+// BusinessOS Pro — Module 1
+// Schéma de base de données — PostgreSQL (Neon/Vercel en production).
+// Les « enums » sont des String validées côté application
+// (voir lib/constants.ts pour les valeurs autorisées) afin de rester portable.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────────────────────────────────────────── Utilisateurs
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerifiedAt DateTime?
+  phone         String?
+  phoneVerifiedAt DateTime?
+  passwordHash  String
+  firstName     String
+  lastName      String
+  avatarUrl     String?
+  locale        String    @default("fr")
+  status        String    @default("ACTIVE") // ACTIVE | SUSPENDED | DISABLED
+  isSuperAdmin  Boolean   @default(false)
+
+  twoFactorEnabled     Boolean @default(false)
+  twoFactorSecret      String?
+  twoFactorBackupCodes String? // JSON: codes de secours hashés
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ownedCompanies     Company[]           @relation("CompanyOwner")
+  reviewedCompanies  Company[]           @relation("CompanyReviewer")
+  memberships        Membership[]
+  sessions           Session[]
+  loginEvents        LoginEvent[]
+  auditLogs          AuditLog[]
+  notifications      Notification[]
+  verificationTokens VerificationToken[]
+  sentInvitations    Invitation[]        @relation("InvitationSender")
+  reviewMessages     CompanyReviewMessage[]
+  uploadedDocuments  CompanyDocument[]
+
+  @@index([status])
+}
+
+// ───────────────────────────────────────────────────────────── Entreprises
+
+model Company {
+  id               String  @id @default(cuid())
+  legalName        String  // Nom de l'entreprise
+  tradeName        String? // Nom commercial
+  registrationType String  @default("NEW") // NEW | EXISTING
+
+  address    String
+  city       String
+  postalCode String
+  country    String
+  phone      String
+  email      String
+  website    String?
+  activity   String
+  logoUrl    String?
+
+  locale   String @default("fr") // Langue
+  currency String @default("EUR") // Devise
+
+  status       String    @default("PENDING") // PENDING | INFO_REQUESTED | APPROVED | REJECTED | SUSPENDED
+  rejectionReason String?
+  reviewedAt   DateTime?
+  reviewedById String?
+  reviewedBy   User?     @relation("CompanyReviewer", fields: [reviewedById], references: [id])
+
+  ownerId String
+  owner   User   @relation("CompanyOwner", fields: [ownerId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships    Membership[]
+  roles          Role[]
+  establishments Establishment[]
+  documents      CompanyDocument[]
+  reviewMessages CompanyReviewMessage[]
+  invitations    Invitation[]
+  subscription   Subscription?
+  auditLogs      AuditLog[]
+
+  @@index([status])
+  @@index([ownerId])
+}
+
+// ───────────────────────────────────────── Rôles & permissions (personnalisables)
+
+model Role {
+  id          String  @id @default(cuid())
+  companyId   String
+  company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  color       String  @default("#6366f1")
+  permissions String  @default("[]") // JSON: liste de clés de permission
+  isSystem    Boolean @default(false) // rôles de base non supprimables
+  isDefault   Boolean @default(false) // rôle attribué par défaut aux nouveaux employés
+
+  memberships Membership[]
+  invitations Invitation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+model Membership {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  roleId    String?
+  role      Role?   @relation(fields: [roleId], references: [id])
+
+  jobTitle String?
+  status   String  @default("ACTIVE") // INVITED | ACTIVE | DISABLED
+  isOwner  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, companyId])
+  @@index([companyId])
+}
+
+model Invitation {
+  id           String  @id @default(cuid())
+  companyId    String
+  company      Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  email        String
+  firstName    String?
+  lastName     String?
+  jobTitle     String?
+  roleId       String?
+  role         Role?   @relation(fields: [roleId], references: [id])
+  tokenHash    String  @unique
+  status       String  @default("PENDING") // PENDING | ACCEPTED | REVOKED | EXPIRED
+  invitedById  String
+  invitedBy    User    @relation("InvitationSender", fields: [invitedById], references: [id])
+
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime
+  acceptedAt DateTime?
+
+  @@index([companyId])
+  @@index([email])
+}
+
+// ───────────────────────────────────────────────────────────── Établissements
+
+model Establishment {
+  id         String  @id @default(cuid())
+  companyId  String
+  company    Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name       String
+  type       String  @default("OTHER") // HEADQUARTERS | WAREHOUSE | STORE | RESTAURANT | OFFICE | OTHER
+  address    String?
+  city       String?
+  postalCode String?
+  country    String?
+  phone      String?
+  email      String?
+  isActive   Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+}
+
+// ───────────────────────────── Vérification entreprise (validation manuelle)
+
+model CompanyDocument {
+  id           String  @id @default(cuid())
+  companyId    String
+  company      Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name         String
+  fileName     String
+  mimeType     String?
+  sizeBytes    Int?
+  // Démo : on stocke une référence/placeholder plutôt qu'un vrai binaire
+  storageRef   String?
+  uploadedById String
+  uploadedBy   User    @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime @default(now())
+
+  @@index([companyId])
+}
+
+model CompanyReviewMessage {
+  id         String  @id @default(cuid())
+  companyId  String
+  company    Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  authorId   String
+  author     User    @relation(fields: [authorId], references: [id])
+  authorRole String  // SUPER_ADMIN | COMPANY
+  body       String
+  createdAt  DateTime @default(now())
+
+  @@index([companyId])
+}
+
+// ─────────────────────────────── Sécurité : tokens, sessions, journaux
+
+model VerificationToken {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       String   // EMAIL | PHONE | PASSWORD_RESET
+  codeHash   String   // sha256 du code/token
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, type])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash    String   @unique // sha256 du token de session (cookie)
+  ipAddress    String?
+  userAgent    String?
+  deviceLabel  String?
+  browser      String?
+  os           String?
+  lastActiveAt DateTime @default(now())
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+}
+
+model LoginEvent {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  email      String
+  success    Boolean
+  reason     String?  // OK | BAD_PASSWORD | UNKNOWN_USER | 2FA_REQUIRED | 2FA_FAILED | BLOCKED | ACCOUNT_DISABLED
+  ipAddress  String?
+  userAgent  String?
+  suspicious Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([email])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  companyId  String?
+  company    Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  actorLabel String?
+  action     String
+  targetType String?
+  targetId   String?
+  metadata   String?  // JSON
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([companyId])
+  @@index([userId])
+  @@index([action])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   @default("INFO") // INFO | SUCCESS | WARNING | DANGER
+  title     String
+  body      String?
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ───────────────────────────────────────────────────────────── Abonnements
+
+// Messages sortants simulés (mode démo) : emails & SMS visibles dans /dev/inbox
+model OutboundMessage {
+  id        String   @id @default(cuid())
+  channel   String   // EMAIL | SMS
+  to        String
+  subject   String?
+  body      String
+  link      String?
+  code      String?
+  createdAt DateTime @default(now())
+
+  @@index([to])
+}
+
+model Subscription {
+  id               String   @id @default(cuid())
+  companyId        String   @unique
+  company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  plan             String   @default("TRIAL") // TRIAL | STARTER | PRO | ENTERPRISE
+  status           String   @default("TRIALING") // TRIALING | ACTIVE | PAST_DUE | CANCELED
+  seats            Int      @default(5)
+  priceMonthly     Int      @default(0) // en centimes
+  currency         String   @default("EUR")
+  currentPeriodEnd DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
